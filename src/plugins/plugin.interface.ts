@@ -2,6 +2,7 @@ export interface GatewayPluginContext {
     query?: string
     variables?: Record<string, any>
     response?: any
+    __fromCache?: boolean
 }
 
 export interface GatewayPlugin {

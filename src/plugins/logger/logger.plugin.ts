@@ -1,4 +1,4 @@
-import { GatewayPlugin } from "./plugin.interface"
+import { GatewayPlugin } from "../plugin.interface"
 
 export const loggerPlugin: GatewayPlugin = {
     name: "logger",
