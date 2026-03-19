@@ -89,6 +89,20 @@ Open GraphQL Playground
 
     http://localhost:4000
 
+## Running with Docker
+
+Start all services (GraphQL API + Redis):
+
+    docker-compose up --build
+
+GraphQL API will be available at:
+
+    http://localhost:4000
+
+Redis runs on:
+
+    localhost:6379
+
 ## Planned Features
 
 * Redis query caching
