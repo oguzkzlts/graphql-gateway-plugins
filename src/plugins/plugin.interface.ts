@@ -3,6 +3,8 @@ export interface GatewayPluginContext {
     variables?: Record<string, any>
     response?: any
     __fromCache?: boolean
+    req?: any
+    user?: any
 }
 
 export interface GatewayPlugin {

@@ -3,48 +3,50 @@ import { PluginManager } from "./plugins/plugin.manager"
 import { loadPlugins } from "./utils/pluginLoader"
 import { GatewayPluginContext } from "./plugins/plugin.interface"
 import { connectRedis } from "./cache/redisClient"
-
-//const pluginManager = new PluginManager()
-
-// Manual Register plugins
-// pluginManager.register(loggerPlugin)
-// pluginManager.register(redisCachePlugin)
+import { GraphQLContext } from "./types/context"
 
 const pluginManager = new PluginManager()
 loadPlugins(pluginManager)
 
 const typeDefs = gql`
-  type Query {
-    health: String
-  }
+    type Query {
+        health: String
+    }
 `
 
 const resolvers = {
     Query: {
-        health: async (_: any, __: any, context: any) => {
-            const pluginContext = context.pluginContext as GatewayPluginContext
+        health: async (_: unknown, __: unknown, context: GraphQLContext) => {
+            const { pluginContext } = context
 
-            // 🔥 If cache already has response, return it
+            // Cache short-circuit
             if (pluginContext.__fromCache) {
-                return pluginContext.response?.data?.health
+                return pluginContext.response?.health
             }
 
-            return "GraphQL Gateway Running 🚀"
+            // Example auth usage
+            if (pluginContext.user) {
+                return `Hello user ${pluginContext.user.id}`
+            }
+
+            return "Public GraphQL Gateway"
         }
     }
 }
 
 async function startServer() {
+    // ✅ Ensure Redis is connected first
     await connectRedis()
 
     const server = new ApolloServer({
         typeDefs,
         resolvers,
 
-        context: async ({ req }) => {
+        context: async ({ req }): Promise<GraphQLContext> => {
             const pluginContext: GatewayPluginContext = {
                 query: req.body?.query,
-                variables: req.body?.variables
+                variables: req.body?.variables,
+                req
             }
 
             try {
@@ -65,7 +67,8 @@ async function startServer() {
                             const pluginContext =
                                 requestContext.context.pluginContext as GatewayPluginContext
 
-                            pluginContext.response = requestContext.response
+                            // Store data (cleaner cache)
+                            pluginContext.response = requestContext.response.data
 
                             try {
                                 await pluginManager.executeResponse(pluginContext)

@@ -1,0 +1,1 @@
+export { rateLimitPlugin as default } from "./rateLimit.plugin"
