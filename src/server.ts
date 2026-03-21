@@ -1,15 +1,17 @@
 import { ApolloServer, gql } from "apollo-server"
 import { PluginManager } from "./plugins/plugin.manager"
-import { loggerPlugin } from "./plugins/logger/logger.plugin"
-import { redisCachePlugin } from "./plugins/redis-cache/redisCache.plugin"
+import { loadPlugins } from "./utils/pluginLoader"
 import { GatewayPluginContext } from "./plugins/plugin.interface"
 import { connectRedis } from "./cache/redisClient"
 
-const pluginManager = new PluginManager()
+//const pluginManager = new PluginManager()
 
-// Register plugins
-pluginManager.register(loggerPlugin)
-pluginManager.register(redisCachePlugin)
+// Manual Register plugins
+// pluginManager.register(loggerPlugin)
+// pluginManager.register(redisCachePlugin)
+
+const pluginManager = new PluginManager()
+loadPlugins(pluginManager)
 
 const typeDefs = gql`
   type Query {

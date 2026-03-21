@@ -1,0 +1,1 @@
+export { redisCachePlugin as default } from "./redisCache.plugin"

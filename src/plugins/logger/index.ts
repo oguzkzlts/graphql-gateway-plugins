@@ -1,0 +1,1 @@
+export { loggerPlugin as default } from "./logger.plugin"
