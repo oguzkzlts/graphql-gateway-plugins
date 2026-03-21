@@ -1,38 +1,15 @@
-import { ApolloServer, gql } from "apollo-server"
+import { ApolloServer } from "apollo-server"
 import { PluginManager } from "./plugins/plugin.manager"
 import { loadPlugins } from "./utils/pluginLoader"
 import { GatewayPluginContext } from "./plugins/plugin.interface"
 import { connectRedis } from "./cache/redisClient"
 import { GraphQLContext } from "./types/context"
+import { createPostLoader } from "./loaders/post.loader"
+import { typeDefs } from "./schema"
+import { resolvers } from "./resolvers"
 
 const pluginManager = new PluginManager()
 loadPlugins(pluginManager)
-
-const typeDefs = gql`
-    type Query {
-        health: String
-    }
-`
-
-const resolvers = {
-    Query: {
-        health: async (_: unknown, __: unknown, context: GraphQLContext) => {
-            const { pluginContext } = context
-
-            // Cache short-circuit
-            if (pluginContext.__fromCache) {
-                return pluginContext.response?.health
-            }
-
-            // Example auth usage
-            if (pluginContext.user) {
-                return `Hello user ${pluginContext.user.id}`
-            }
-
-            return "Public GraphQL Gateway"
-        }
-    }
-}
 
 async function startServer() {
     // ✅ Ensure Redis is connected first
@@ -56,7 +33,12 @@ async function startServer() {
                 await pluginManager.executeError(error as Error)
             }
 
-            return { pluginContext }
+            return {
+                pluginContext,
+                loaders: {
+                    postLoader: createPostLoader()
+                }
+            }
         },
 
         plugins: [
