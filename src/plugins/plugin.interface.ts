@@ -5,6 +5,7 @@ export interface GatewayPluginContext {
     __fromCache?: boolean
     req?: any
     user?: any
+    __startTime?: number
 }
 
 export interface GatewayPlugin {

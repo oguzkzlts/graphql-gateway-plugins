@@ -1,0 +1,1 @@
+export { metricsPlugin as default } from "./metrics.plugin"

@@ -1,4 +1,5 @@
-import { ApolloServer } from "apollo-server"
+import express from "express"
+import { ApolloServer } from "apollo-server-express"
 import { PluginManager } from "./plugins/plugin.manager"
 import { loadPlugins } from "./utils/pluginLoader"
 import { GatewayPluginContext } from "./plugins/plugin.interface"
@@ -7,13 +8,15 @@ import { GraphQLContext } from "./types/context"
 import { createPostLoader } from "./loaders/post.loader"
 import { typeDefs } from "./schema"
 import { resolvers } from "./resolvers"
+import { getMetrics } from "./plugins/metrics/metrics.store"
 
 const pluginManager = new PluginManager()
 loadPlugins(pluginManager)
 
 async function startServer() {
-    // ✅ Ensure Redis is connected first
     await connectRedis()
+
+    const app = express()
 
     const server = new ApolloServer({
         typeDefs,
@@ -49,7 +52,6 @@ async function startServer() {
                             const pluginContext =
                                 requestContext.context.pluginContext as GatewayPluginContext
 
-                            // Store data (cleaner cache)
                             pluginContext.response = requestContext.response.data
 
                             try {
@@ -64,9 +66,21 @@ async function startServer() {
             }
         ]
     })
-    const { url } = await server.listen({ port: 4000 })
 
-    console.log(`Gateway running at ${url}`)
+    // Start Apollo
+    await server.start()
+
+    // Attach GraphQL to Express
+    server.applyMiddleware({ app, path: "/graphql" })
+
+    app.get("/metrics", (_req, res) => {
+        res.json(getMetrics())
+    })
+
+    app.listen(4000, () => {
+        console.log("GraphQL: http://localhost:4000/graphql")
+        console.log("Metrics: http://localhost:4000/metrics")
+    })
 }
 
 startServer().catch(async (err) => {
