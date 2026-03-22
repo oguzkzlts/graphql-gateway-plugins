@@ -8,7 +8,9 @@ import { GraphQLContext } from "./types/context"
 import { createPostLoader } from "./loaders/post.loader"
 import { typeDefs } from "./schema"
 import { resolvers } from "./resolvers"
+import { makeExecutableSchema } from "@graphql-tools/schema"
 import { getMetrics } from "./plugins/metrics/metrics.store"
+import { parse } from "graphql"
 
 const pluginManager = new PluginManager()
 loadPlugins(pluginManager)
@@ -18,14 +20,33 @@ async function startServer() {
 
     const app = express()
 
-    const server = new ApolloServer({
+    const schema = makeExecutableSchema({
         typeDefs,
-        resolvers,
+        resolvers
+    })
+
+    const server = new ApolloServer({
+        schema,
 
         context: async ({ req }): Promise<GraphQLContext> => {
+            const query = req.body?.query
+            const variables = req.body?.variables
+
+            let document
+
+            try {
+                if (query) {
+                    document = parse(query) // parse GraphQL query
+                }
+            } catch (err) {
+                console.error("Query parse error:", err)
+            }
+
             const pluginContext: GatewayPluginContext = {
-                query: req.body?.query,
-                variables: req.body?.variables,
+                query,
+                variables,
+                document,
+                schema,
                 req
             }
 

@@ -1,3 +1,6 @@
+import {GraphQLSchema} from "graphql/type";
+import {DocumentNode} from "graphql/language";
+
 export interface GatewayPluginContext {
     query?: string
     variables?: Record<string, any>
@@ -6,6 +9,9 @@ export interface GatewayPluginContext {
     req?: any
     user?: any
     __startTime?: number
+
+    document?: DocumentNode
+    schema?: GraphQLSchema
 }
 
 export interface GatewayPlugin {
