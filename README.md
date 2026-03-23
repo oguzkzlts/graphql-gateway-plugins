@@ -4,6 +4,17 @@ A modular **GraphQL API Gateway** built with a **plugin architecture** and **Red
 
 The goal of this project is to demonstrate how to design a scalable GraphQL gateway that aggregates multiple services while supporting extensible middleware via plugins.
 
+## Architecture
+
+- Plugin-based middleware system
+- Redis caching layer
+- Rate limiting & authentication
+- Query complexity protection
+- DataLoader (N+1 problem solved)
+- Metrics & observability (P95 latency)
+- External API aggregation
+
+
 ## Features
 
 * GraphQL API Gateway
@@ -25,13 +36,11 @@ The goal of this project is to demonstrate how to design a scalable GraphQL gate
 
 ## Project Structure
 
-## Project Structure
-
 ```
 .
 ├── src
 │   ├── server.ts          # Application entrypoint (GraphQL server bootstrap)
-│
+│   │
 │   ├── schema             # GraphQL schema definitions
 │   │
 │   ├── resolvers          # GraphQL resolver implementations
@@ -43,8 +52,17 @@ The goal of this project is to demonstrate how to design a scalable GraphQL gate
 │   ├── cache              # Redis caching layer and cache utilities
 │   │
 │   ├── plugins            # Gateway plugin system (middleware-style extensions)
+│   │      ├── Auth
+│   │      ├── Rate Limit
+│   │      ├── Cache (Redis)
+│   │      ├── Metrics
+│   │      └── Complexity
 │   │
 │   └── utils              # Shared utilities and helper functions
+│   └── DataLoader  
+│   └── External APIs
+│          ├── Users
+│          └── Posts   
 │
 ├── package.json
 ├── tsconfig.json
