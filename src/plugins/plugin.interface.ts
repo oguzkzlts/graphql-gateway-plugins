@@ -9,7 +9,7 @@ export interface GatewayPluginContext {
     req?: any
     user?: any
     __startTime?: number
-
+    __operationName?: string
     document?: DocumentNode
     schema?: GraphQLSchema
 }
