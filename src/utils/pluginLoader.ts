@@ -5,26 +5,24 @@ import { GatewayPlugin } from "../plugins/plugin.interface"
 
 export function loadPlugins(pluginManager: PluginManager) {
     const pluginsDir = path.join(__dirname, "../plugins")
-    const pluginFolders = fs.readdirSync(pluginsDir)
+    if (!fs.existsSync(pluginsDir)) return
+
+    const pluginFolders = fs.readdirSync(pluginsDir).filter(f => {
+        const fullPath = path.join(pluginsDir, f)
+        return fs.statSync(fullPath).isDirectory() && !f.startsWith("plugin.")
+    })
 
     for (const folder of pluginFolders) {
-        const fullPath = path.join(pluginsDir, folder)
-        // Skip non-directories and core files
-        if (
-            !fs.statSync(fullPath).isDirectory() ||
-            folder.startsWith("plugin.")
-        ) {
-            continue
-        }
+        const pluginPath = path.join(pluginsDir, folder, "index.js")
+        if (!fs.existsSync(pluginPath)) continue
+
         try {
-            // Look for index.ts or plugin file
-            const pluginPath = path.join(fullPath)
             const pluginModule = require(pluginPath)
             const plugin: GatewayPlugin =
                 pluginModule.default ||
                 pluginModule[Object.keys(pluginModule)[0]]
 
-            if (plugin && plugin.name) {
+            if (plugin?.name) {
                 pluginManager.register(plugin)
                 console.log(`Loaded plugin: ${plugin.name}`)
             }

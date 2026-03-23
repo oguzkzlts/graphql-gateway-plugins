@@ -1,70 +1,54 @@
 import express from "express"
 import { ApolloServer } from "apollo-server-express"
-import { PluginManager } from "./plugins/plugin.manager"
-import { loadPlugins } from "./utils/pluginLoader"
-import { GatewayPluginContext } from "./plugins/plugin.interface"
-import { connectRedis } from "./cache/redisClient"
-import { GraphQLContext } from "./types/context"
-import { createPostLoader } from "./loaders/post.loader"
+import { makeExecutableSchema } from "@graphql-tools/schema"
 import { typeDefs } from "./schema"
 import { resolvers } from "./resolvers"
-import { makeExecutableSchema } from "@graphql-tools/schema"
+import { PluginManager } from "./plugins/plugin.manager"
+import { loadPlugins } from "./utils/pluginLoader"
+import { connectRedis } from "./cache/redisClient"
+import { createPostLoader } from "./loaders/post.loader"
 import { getMetrics } from "./plugins/metrics/metrics.store"
-import { parse } from "graphql"
-
-const pluginManager = new PluginManager()
-loadPlugins(pluginManager)
+import { GraphQLContext } from "./types/context"
+import { GatewayPluginContext } from "./plugins/plugin.interface"
 
 async function startServer() {
     await connectRedis()
 
     const app = express()
+    app.use(express.json())
 
-    const schema = makeExecutableSchema({
-        typeDefs,
-        resolvers
-    })
+    const pluginManager = new PluginManager()
+    loadPlugins(pluginManager)
+
+    const schema = makeExecutableSchema({ typeDefs, resolvers })
 
     const server = new ApolloServer({
         schema,
-
-        context: async ({ req }): Promise<GraphQLContext> => {
+        context: async ({ req, document }): Promise<GraphQLContext> => {
             const query = req.body?.query
             const variables = req.body?.variables
-
-            let document
-
-            try {
-                if (query) {
-                    document = parse(query) // parse GraphQL query
-                }
-            } catch (err) {
-                console.error("Query parse error:", err)
-            }
 
             const pluginContext: GatewayPluginContext = {
                 query,
                 variables,
-                document,
+                document, // Apollo already provides the parsed document
                 schema,
-                req
+                req,
+                __startTime: Date.now()
             }
 
             try {
                 await pluginManager.executeRequest(pluginContext)
-            } catch (error) {
-                console.error("Plugin request error:", error)
-                await pluginManager.executeError(error as Error)
+            } catch (err) {
+                console.error("Plugin request error:", err)
+                await pluginManager.executeError(err as Error)
             }
 
             return {
                 pluginContext,
-                loaders: {
-                    postLoader: createPostLoader()
-                }
+                loaders: { postLoader: createPostLoader() }
             }
         },
-
         plugins: [
             {
                 async requestDidStart() {
@@ -72,14 +56,13 @@ async function startServer() {
                         async willSendResponse(requestContext) {
                             const pluginContext =
                                 requestContext.context.pluginContext as GatewayPluginContext
-
                             pluginContext.response = requestContext.response.data
 
                             try {
                                 await pluginManager.executeResponse(pluginContext)
-                            } catch (error) {
-                                console.error("Plugin response error:", error)
-                                await pluginManager.executeError(error as Error)
+                            } catch (err) {
+                                console.error("Plugin response error:", err)
+                                await pluginManager.executeError(err as Error)
                             }
                         }
                     }
@@ -88,23 +71,20 @@ async function startServer() {
         ]
     })
 
-    // Start Apollo
     await server.start()
-
-    // Attach GraphQL to Express
     server.applyMiddleware({ app, path: "/graphql" })
 
-    app.get("/metrics", (_req, res) => {
-        res.json(getMetrics())
-    })
+    // Health check & metrics endpoints
+    app.get("/health", (_req, res) => res.send("OK"))
+    app.get("/metrics", (_req, res) => res.json(getMetrics()))
 
-    app.listen(4000, () => {
-        console.log("GraphQL: http://localhost:4000/graphql")
-        console.log("Metrics: http://localhost:4000/metrics")
+    const port = process.env.PORT || 4000
+    app.listen(port, () => {
+        console.log(`GraphQL server running at http://localhost:${port}/graphql`)
+        console.log(`Metrics endpoint at http://localhost:${port}/metrics`)
     })
 }
 
 startServer().catch(async (err) => {
-    console.error("Server startup error:", err)
-    await pluginManager.executeError(err)
+    console.error("Server startup failed:", err)
 })
