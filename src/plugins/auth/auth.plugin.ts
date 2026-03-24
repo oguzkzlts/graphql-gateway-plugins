@@ -1,26 +1,34 @@
-import {GatewayPlugin} from "../plugin.interface"
+import { GatewayPlugin, GatewayPluginContext } from "../plugin.interface"
+import jwt, { JwtPayload } from "jsonwebtoken"
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret"
 
 export const authPlugin: GatewayPlugin = {
     name: "auth",
-    onRequest(context: any) {
+
+    onRequest(context: GatewayPluginContext) {
         const authHeader = context.req?.headers["authorization"]
-        if (!authHeader) {
-            return //TODO: prevent public access later
-        }
+        if (!authHeader) throw new Error("Authorization header missing")
+
         const token = authHeader.replace("Bearer ", "")
+
         try {
-            //TODO: Replace later with real JWT verification
-            context.user = fakeVerify(token)
+            const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload
+
+            if (!decoded.sub) throw new Error("Invalid token payload")
+
+            context.user = {
+                id: decoded.sub,
+                role: decoded.role || "user",
+                email: decoded.email
+            }
+
+            if (!["user", "admin"].includes(context.user.role)) {
+                throw new Error("Insufficient permissions")
+            }
         } catch (err) {
+            console.error("Authentication error:", err)
             throw new Error("Unauthorized")
         }
     }
-}
-
-// Temporary mock
-function fakeVerify(token: string) {
-    if (token === "valid-token") {
-        return { id: "1", role: "user" }
-    }
-    throw new Error("Invalid token")
 }

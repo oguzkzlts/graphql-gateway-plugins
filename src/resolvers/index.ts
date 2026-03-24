@@ -4,13 +4,26 @@ import { GraphQLContext } from "../types/context"
 
 export const resolvers = {
     Query: {
-        users: async () => fetchUsers(),
+        users: async (_: any, __: any, context: GraphQLContext) => {
+            if (!context.pluginContext.user) {
+                throw new Error("Unauthorized")
+            }
+            return fetchUsers()
+        },
 
-        user: async (_: any, args: { id: string }) => {
+        user: async (_: any, args: { id: string }, context: GraphQLContext) => {
+            if (!context.pluginContext.user) {
+                throw new Error("Unauthorized")
+            }
             return fetchUserById(args.id)
         },
 
-        posts: async () => fetchPosts()
+        posts: async (_: any, __: any, context: GraphQLContext) => {
+            if (!context.pluginContext.user) {
+                throw new Error("Unauthorized")
+            }
+            return fetchPosts()
+        }
     },
 
     User: {

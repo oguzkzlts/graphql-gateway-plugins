@@ -25,13 +25,10 @@ async function startServer() {
     const server = new ApolloServer({
         schema,
         context: async ({ req, document }): Promise<GraphQLContext> => {
-            const query = req.body?.query
-            const variables = req.body?.variables
-
             const pluginContext: GatewayPluginContext = {
-                query,
-                variables,
-                document, // Apollo already provides the parsed document
+                query: req.body?.query,
+                variables: req.body?.variables,
+                document,
                 schema,
                 req,
                 __startTime: Date.now()
