@@ -2,6 +2,8 @@ type Metrics = {
     totalRequests: number
     totalErrors: number
     slowRequests: number
+    cacheHits: number
+    cacheMisses: number
     durations: number[]
     operations: Record<string, number>
 }
@@ -12,6 +14,8 @@ const metrics: Metrics = {
     totalRequests: 0,
     totalErrors: 0,
     slowRequests: 0,
+    cacheHits: 0,
+    cacheMisses: 0,
     durations: [],
     operations: {}
 }
@@ -46,6 +50,16 @@ export function recordOperation(operation: string) {
     metrics.operations[key] = (metrics.operations[key] || 0) + 1
 }
 
+// Record Redis cache hits
+export function recordCacheHit() {
+    metrics.cacheHits++
+}
+
+// Record Redis cache misses
+export function recordCacheMiss() {
+    metrics.cacheMisses++
+}
+
 // Percentile helper (P95 etc.)
 function percentile(arr: number[], p: number) {
     if (arr.length === 0) return 0
@@ -68,6 +82,8 @@ export function getMetrics() {
         totalRequests: metrics.totalRequests,
         totalErrors: metrics.totalErrors,
         slowRequests: metrics.slowRequests,
+        cacheHits: metrics.cacheHits,
+        cacheMisses: metrics.cacheMisses,
         avgResponseTime: Math.round(avg),
         p95ResponseTime: percentile(metrics.durations, 95),
         operations: metrics.operations

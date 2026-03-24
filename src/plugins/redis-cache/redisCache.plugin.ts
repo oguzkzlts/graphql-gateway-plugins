@@ -1,7 +1,14 @@
-import { GatewayPlugin } from "../plugin.interface"
-import { redisClient } from "../../cache/redisClient"
+import { GatewayPlugin, GatewayPluginContext } from "../plugin.interface"
+import { getRedis } from "../../cache/redisClient"
+import crypto from "crypto"
+import { recordCacheHit, recordCacheMiss } from "../metrics/metrics.store"
 
-const CACHE_TTL = 60 // seconds
+const CACHE_TTL = Number(process.env.REDIS_TTL) || 60 // seconds
+
+function generateCacheKey(context: GatewayPluginContext) {
+    const rawKey = JSON.stringify({ query: context.query, variables: context.variables })
+    return crypto.createHash("sha256").update(rawKey).digest("hex")
+}
 
 export const redisCachePlugin: GatewayPlugin = {
     name: "redisCache",
@@ -9,35 +16,36 @@ export const redisCachePlugin: GatewayPlugin = {
     async onRequest(context) {
         if (!context.query) return
 
-        const key = JSON.stringify({
-            query: context.query,
-            variables: context.variables
-        })
+        const redis = getRedis()
+        const key = generateCacheKey(context)
 
-        const cached = await redisClient.get(key)
-
-        if (cached) {
-            console.log("⚡ Cache hit")
-
-            context.response = JSON.parse(cached)
-            context.__fromCache = true
+        try {
+            const cached = await redis.get(key)
+            if (cached) {
+                context.response = JSON.parse(cached)
+                context.__fromCache = true
+                recordCacheHit()
+                console.log(`[Cache] Hit for key: ${key}`)
+            } else {
+                recordCacheMiss()
+                console.log(`[Cache] Miss for key: ${key}`)
+            }
+        } catch (err) {
+            console.warn("Redis read error:", err)
         }
     },
 
     async onResponse(context) {
         if (!context.query || context.__fromCache) return
 
-        const key = JSON.stringify({
-            query: context.query,
-            variables: context.variables
-        })
+        const redis = getRedis()
+        const key = generateCacheKey(context)
 
-        await redisClient.setEx(
-            key,
-            CACHE_TTL,
-            JSON.stringify(context.response)
-        )
-
-        console.log("💾 Cached response")
+        try {
+            await redis.set(key, JSON.stringify(context.response), "EX", CACHE_TTL)
+            console.log(`[Cache] Stored response for key: ${key} (TTL: ${CACHE_TTL}s)`)
+        } catch (err) {
+            console.warn("Redis write error:", err)
+        }
     }
 }
