@@ -24,11 +24,10 @@ async function startServer() {
 
     const server = new ApolloServer({
         schema,
-        context: async ({ req, document }): Promise<GraphQLContext> => {
+        context: async ({ req }): Promise<GraphQLContext> => {
             const pluginContext: GatewayPluginContext = {
                 query: req.body?.query,
                 variables: req.body?.variables,
-                document,
                 schema,
                 req,
                 __startTime: Date.now()
@@ -48,7 +47,12 @@ async function startServer() {
         },
         plugins: [
             {
-                async requestDidStart() {
+                async requestDidStart(requestContext) {
+                    // document is available here in requestContext
+                    const pluginContext =
+                        requestContext.context.pluginContext as GatewayPluginContext
+                    pluginContext.document = requestContext.document
+
                     return {
                         async willSendResponse(requestContext) {
                             const pluginContext =
